@@ -1,0 +1,13 @@
+[package]
+name = "samp-vanilla-assets"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"] # or dylib
+
+[dependencies]
+samp = "0.1.2"
+log = "0.4"
+tiny_http = "0.12"
+ffmpeg-sidecar = { version = "2.5.2", default-features = false }
