@@ -1,9 +1,9 @@
 pub mod frame;
+mod natives;
 pub mod placement;
 pub mod screen_buffer;
 
 use std::collections::VecDeque;
-use std::sync::mpsc::{Sender, SyncSender, TrySendError};
 use std::time::{Duration, Instant};
 
 use log::info;
@@ -16,11 +16,10 @@ use crate::constants::{
     CANVAS_HEIGHT, CANVAS_WIDTH, MATERIAL_PAINT_COST_ESTIMATE, MATERIAL_PAINT_COST_PER_CHAR,
     POSITION_UPDATE_COST,
 };
-use crate::content_sources::video::{self, FrameOutcome};
 use crate::engine::WorldPosition;
 use crate::network_budget::NetworkBudget;
 use crate::screen::{DisplayTargetMethod, Screen};
-use crate::screen_3d::frame::{Frame3D, Frame3DMaterial, build_frame3d};
+use crate::screen_3d::frame::{Frame3D, build_frame3d};
 use crate::screen_3d::placement::{create_screen_decoy, destroy_screen_decoy};
 use crate::screen_3d::screen_buffer::ScreenBuffer;
 
@@ -50,11 +49,8 @@ pub struct Screen3D {
     ready_queue: VecDeque<(usize, Instant, Duration)>,
     next_hidden_index: usize,
     visible_index: usize,
-    // This screen's live-audio relay path on `audio_server`, if it's a live
-    // stream - so `destroy` can pull the plug on the actual audio source
-    // server-side instead of leaving it playing for whoever's already
-    // connected to it.
-    live_audio_path: Option<String>,
+    audio_url: Option<String>,
+    audio_relay_path: Option<String>,
     target_method: DisplayTargetMethod,
     _has_started: bool,
     last_area_listener_sync: Instant,
@@ -66,59 +62,18 @@ impl Screen for Screen3D {
     /// `(tile_cols, tile_rows)` for the mosaic.
     type DecodeConfig = (usize, usize);
 
-    fn load_clip(
-        url: &str,
-        sender: Sender<(Vec<Frame3DMaterial>, Duration)>,
-        &(tile_cols, tile_rows): &(usize, usize),
-    ) -> Result<(), String> {
+    fn decode_dimensions(&(tile_cols, tile_rows): &(usize, usize)) -> (u32, u32) {
         let canvas_width = CANVAS_WIDTH * tile_cols as u32;
         let canvas_height = CANVAS_HEIGHT * tile_rows as u32;
-
-        info!(
-            "load_clip -> decoding {} ({}x{}, tiles {}x{})",
-            url, canvas_width, canvas_height, tile_cols, tile_rows
-        );
-
-        let raw_frames = video::load_frames(url, canvas_width, canvas_height)?;
-        info!(
-            "load_clip -> ffmpeg produced {} raw frame(s), building Frame3D",
-            raw_frames.len()
-        );
-
-        let frame_count = raw_frames.len();
-        for raw in raw_frames {
-            if sender
-                .send(build_frame3d(&raw.data, raw.delay, tile_cols, tile_rows))
-                .is_err()
-            {
-                info!("load_clip -> receiver disconnected");
-                return Ok(());
-            }
-        }
-        info!(
-            "load_clip -> built and sent {} Frame3D entries",
-            frame_count
-        );
-        info!("load_clip -> done");
-
-        Ok(())
+        (canvas_width, canvas_height)
     }
 
-    fn stream_clip(
-        url: &str,
-        sender: SyncSender<(Vec<Frame3DMaterial>, Duration)>,
+    fn build_frame(
+        canvas: &[u8],
+        delay: Duration,
         &(tile_cols, tile_rows): &(usize, usize),
-    ) -> Result<(), String> {
-        let canvas_width = CANVAS_WIDTH * tile_cols as u32;
-        let canvas_height = CANVAS_HEIGHT * tile_rows as u32;
-
-        video::stream_frames(url, canvas_width, canvas_height, |raw| {
-            match sender.try_send(build_frame3d(&raw.data, raw.delay, tile_cols, tile_rows)) {
-                Ok(()) => FrameOutcome::Sent,
-                Err(TrySendError::Full(_)) => FrameOutcome::Dropped,
-                Err(TrySendError::Disconnected(_)) => FrameOutcome::Disconnected,
-            }
-        })
+    ) -> (Self::Frame, Duration) {
+        build_frame3d(canvas, delay, tile_cols, tile_rows)
     }
 
     fn animation_mut(&mut self) -> &mut Animation<Frame3D> {
@@ -137,18 +92,26 @@ impl Screen for Screen3D {
         self.try_start_next_paint(amx, budget);
     }
 
-    fn tick(&mut self, amx: &Amx, budget: &mut NetworkBudget) -> AmxResult<()> {
-        if !self._has_started {
-            let audio_url = self.live_audio_path.clone();
-            if let Some(url) = audio_url.as_deref() {
-                self.target_method
-                    .start_audio(amx, url, self.w_position.position())?;
-            }
-            self._has_started = true;
+    fn amx_ident(&self) -> AmxIdent {
+        self.amx_ident
+    }
+
+    fn destroy_screen(&self, amx: &Amx) {
+        for buffer in &self.buffers {
+            buffer.destroy(amx);
+        }
+        if let Some(object_ids) = &self.loading_decoy {
+            destroy_screen_decoy(amx, object_ids);
         }
 
+        if self.audio_relay_path.is_none() {
+            info!("Screen3D::destroy -> no audio_relay_path set");
+        }
+    }
+
+    fn before_step_paint(&mut self, amx: &Amx) -> AmxResult<()> {
         if self.last_area_listener_sync.elapsed() >= AREA_LISTENER_SYNC_INTERVAL {
-            let audio_url = self.live_audio_path.clone();
+            let audio_url = self.audio_url.clone();
             self.target_method.sync_area_listeners(
                 amx,
                 audio_url.as_deref(),
@@ -157,7 +120,6 @@ impl Screen for Screen3D {
             self.last_area_listener_sync = Instant::now();
         }
 
-        self.step_paint(amx, budget);
         Ok(())
     }
 
@@ -174,11 +136,19 @@ impl Screen for Screen3D {
     }
 
     fn audio_url(&self) -> &Option<String> {
-        &self.live_audio_path
+        &self.audio_url
     }
 
     fn set_audio_url(&mut self, url: String) {
-        self.live_audio_path = Some(url);
+        self.audio_url = Some(url);
+    }
+
+    fn audio_relay_path(&self) -> Option<&str> {
+        self.audio_relay_path.as_deref()
+    }
+
+    fn set_audio_relay_path(&mut self, path: String) {
+        self.audio_relay_path = Some(path);
     }
 
     fn get_position(&self) -> &WorldPosition {
@@ -214,7 +184,6 @@ impl Screen3D {
             _ => None,
         };
 
-        
         let loading_decoy = Some(create_screen_decoy(
             amx, &position, tile_cols, tile_rows, &player_id,
         )?);
@@ -229,7 +198,6 @@ impl Screen3D {
                 amx, position, tile_cols, tile_rows, &player_id,
             )?);
         }
-
 
         let frame_duration = Duration::from_millis(100);
         let screen_animation = None;
@@ -249,7 +217,8 @@ impl Screen3D {
             ready_queue: VecDeque::new(),
             next_hidden_index: 1,
             visible_index: 0,
-            live_audio_path: None,
+            audio_url: None,
+            audio_relay_path: None,
             target_method,
             _has_started: false,
             last_area_listener_sync: Instant::now(),
@@ -395,74 +364,5 @@ impl Screen3D {
             target, self.buffers[target].tiles[0].object_id
         );
         Ok(())
-    }
-
-    /// Destroys every ring-buffer object backing this screen - visible and
-    /// hidden alike - and stops its live audio relay, if it has one.
-    /// Whatever's mid-paint/mid-swap is simply abandoned; there's no "finish
-    /// gracefully" step worth doing for a screen that's about to stop
-    /// existing entirely.
-    pub fn destroy(&self, amx: &Amx) {
-        for buffer in &self.buffers {
-            buffer.destroy(amx);
-        }
-        if let Some(object_ids) = &self.loading_decoy {
-            destroy_screen_decoy(amx, object_ids);
-        }
-
-        let mut target_method = self.target_method.clone();
-        if let Err(err) = target_method.stop_audio(amx) {
-            info!(
-                "Screen3D::destroy -> failed to stop listener audio: {:?}",
-                err
-            );
-        }
-
-        if let Some(area_id) = self.target_method.area_id() {
-            if let Err(err) = crate::amx_natives::destroy_dynamic_area(amx, area_id) {
-                info!(
-                    "Screen3D::destroy -> failed to destroy audio area {}: {:?}",
-                    area_id, err
-                );
-            }
-        }
-
-        match &self.live_audio_path {
-            Some(path) => {
-                info!("Screen3D::destroy -> stopping live audio source {}", path);
-                crate::audio_server::stop_live_source(path);
-            }
-            None => info!(
-                "Screen3D::destroy -> no live_audio_path set (not a live screen, or never got that far)"
-            ),
-        }
-    }
-
-    pub fn handle_area_enter(
-        &mut self,
-        amx: &Amx,
-        player_id: i32,
-        area_id: i32,
-    ) -> AmxResult<bool> {
-        if self.target_method.area_id() != Some(area_id) {
-            return Ok(false);
-        }
-
-        let audio_url = self.live_audio_path.as_deref();
-        self.target_method
-            .add_area_listener(amx, player_id, audio_url, self.w_position.position())
-    }
-
-    pub fn handle_area_leave(
-        &mut self,
-        amx: &Amx,
-        player_id: i32,
-        area_id: i32,
-    ) -> AmxResult<bool> {
-        if self.target_method.area_id() != Some(area_id) {
-            return Ok(false);
-        }
-
-        self.target_method.remove_area_listener(amx, player_id)
     }
 }
