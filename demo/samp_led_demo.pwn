@@ -1,11 +1,11 @@
 /*
     Example filterscript for the samp-led plugin.
 
-    Shows the full flow: pick a media type with a command, drag/rotate a
+    Shows the full flow: pass a media URL with a command, drag/rotate a
     preview ("ghost") with the mouse via the native object editor, then
     create the real screen wherever you let go.
 
-    Commands: /img <url>, /gif <url>, /video <url>, /live <youtube url>, /delscreen
+    Commands: /screen <media url>, /imgdialog <media url>, /delscreen
 */
 
 #define FILTERSCRIPT
@@ -27,14 +27,17 @@ native SVA_AreaListenerOnPlayerLeave(playerid, areaid);
 
 native Create3DMediaScreenPreview(Float:x, Float:y, Float:z, Float:rotationX = 0.0, Float:rotationY = 0.0, Float:rotationZ = 0.0, tileCols = 1, tileRows = 1, worldid = -1, interior_id = -1, playerid = -1);
 native Destroy3DMediaScreenPreview(previewObjectId);
+native CreateDialogScreen(playerid, const url[], cols = 32, rows = 32);
+native DestroyDialogScreen(screenIndex);
 
 #define INVALID_SCREEN_INDEX (-1)
 
-// Only /img currently asks for more than a single tile - multi-tile mosaics
-// for animated content (gif/video/live) haven't proven reliable yet.
-#define MOSAIC_TILE_COLS 2
-#define MOSAIC_TILE_ROWS 2
+#define SCREEN_TILE_COLS 1
+#define SCREEN_TILE_ROWS 1
 #define SCREEN_HIDDEN_BUFFER_Z_OFFSET (8.0)
+#define DIALOG_SCREEN_DIALOG_ID 1
+#define DIALOG_SCREEN_COLS 48
+#define DIALOG_SCREEN_ROWS 48
 
 // Default AMX dynamic memory is tiny (a holdover from ancient hardware
 // constraints); the Rust plugin allocates large strings on this same heap for
@@ -73,6 +76,8 @@ public _KeepObjectNativesAlive()
         TextDrawTextSize(logo, 0.0, 0.0);
         TextDrawShowForAll(logo);
         TextDrawShowForPlayer(0, logo);
+        ShowPlayerDialog(0, 0, DIALOG_STYLE_MSGBOX, "", "", "", "");
+        HidePlayerDialog(0);
         CreateDynamicObject(0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 200.0, 0.0, -1, 0);
         SetDynamicObjectMaterialText(objectid, 0, "", OBJECT_MATERIAL_SIZE_256x128, "Arial", 24,  1, 0xFFFFFFFF, 0, 0);
         new STREAMER_TAG_AREA:areaid = CreateDynamicSphere(0.0, 0.0, 0.0, 5.0, -1, -1, -1);
@@ -87,20 +92,12 @@ public _KeepObjectNativesAlive()
     return 1;
 }
 
-enum e_PENDING_SCREEN
-{
-    SCREEN_MEDIA_NONE,
-    SCREEN_MEDIA_IMAGE,
-    SCREEN_MEDIA_GIF,
-    SCREEN_MEDIA_VIDEO,
-    SCREEN_MEDIA_YOUTUBE_LIVE
-};
-
 new
-    e_PENDING_SCREEN:gPendingScreenMedia[MAX_PLAYERS],
+    bool:gPendingScreenPlacement[MAX_PLAYERS],
     gPendingScreenUrl[MAX_PLAYERS][128],
     gPendingScreenGhost[MAX_PLAYERS],
     gLastScreenIndex[MAX_PLAYERS],
+    gLastDialogScreenIndex[MAX_PLAYERS],
     gDynamicProbeObject = INVALID_STREAMER_ID
 ;
 
@@ -117,7 +114,7 @@ public OnFilterScriptInit()
         print("CreateDynamicObject FAILED (runtime probe not created).");
     }
 
-    print("samp_led_demo loaded - commands: /img /gif /video /live <url>");
+    print("samp_led_demo loaded - commands: /screen <media url> /imgdialog <media url> /delscreen");
     return 1;
 }
 
@@ -134,18 +131,24 @@ public OnFilterScriptExit()
 
 public OnPlayerConnect(playerid)
 {
-    gPendingScreenMedia[playerid] = SCREEN_MEDIA_NONE;
+    gPendingScreenPlacement[playerid] = false;
     gPendingScreenGhost[playerid] = INVALID_OBJECT_ID;
     gLastScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+    gLastDialogScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     return 1;
 }
 
 public OnPlayerDisconnect(playerid, reason)
 {
-    if (gPendingScreenMedia[playerid] != SCREEN_MEDIA_NONE)
+    if (gPendingScreenPlacement[playerid])
     {
         Destroy3DMediaScreenPreview(gPendingScreenGhost[playerid]);
-        gPendingScreenMedia[playerid] = SCREEN_MEDIA_NONE;
+        gPendingScreenPlacement[playerid] = false;
+    }
+    if (gLastDialogScreenIndex[playerid] != INVALID_SCREEN_INDEX)
+    {
+        DestroyDialogScreen(gLastDialogScreenIndex[playerid]);
+        gLastDialogScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     }
     return 1;
 }
@@ -166,11 +169,11 @@ public OnPlayerLeaveDynamicArea(playerid, STREAMER_TAG_AREA:areaid)
 // and remembers what to create once they confirm the placement in
 // OnPlayerEditObject. The ghost's starting spot is just a convenience - the
 // player can move/rotate it anywhere before confirming.
-StartScreenPlacement(playerid, e_PENDING_SCREEN:type, const url[])
+StartScreenPlacement(playerid, const url[])
 {
     if (strlen(url) == 0)
     {
-        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /img|/gif|/video|/live <url>");
+        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /screen <media url>");
         return;
     }
 
@@ -180,16 +183,9 @@ StartScreenPlacement(playerid, e_PENDING_SCREEN:type, const url[])
     x += 2.0 * floatsin(rotationZ, degrees);
     y += 2.0 * floatcos(rotationZ, degrees);
 
-    new tileCols = 1, tileRows = 1;
-    if (type == SCREEN_MEDIA_IMAGE)
-    {
-        tileCols = MOSAIC_TILE_COLS;
-        tileRows = MOSAIC_TILE_ROWS;
-    }
-
-    gPendingScreenMedia[playerid] = type;
+    gPendingScreenPlacement[playerid] = true;
     strcopy(gPendingScreenUrl[playerid], url);
-    gPendingScreenGhost[playerid] = Create3DMediaScreenPreview(x, y, z, 0.0, 0.0, rotationZ, tileCols, tileRows, -1, -1, playerid);
+    gPendingScreenGhost[playerid] = Create3DMediaScreenPreview(x, y, z, 0.0, 0.0, rotationZ, SCREEN_TILE_COLS, SCREEN_TILE_ROWS, -1, -1, playerid);
     EditDynamicObject(playerid, gPendingScreenGhost[playerid]);
     SendClientMessage(playerid, 0xFFFFFFFF, "Arraste/gire a tela e clique em concluir para confirmar.");
 }
@@ -198,28 +194,32 @@ public OnPlayerCommandText(playerid, cmdtext[])
 {
     new url[128];
 
-    if (strcmp(cmdtext, "/img", true, 4) == 0)
+    if (strcmp(cmdtext, "/imgdialog ", true, 11) == 0)
     {
-        strmid(url, cmdtext, 5, strlen(cmdtext));
-        StartScreenPlacement(playerid, SCREEN_MEDIA_IMAGE, url);
+        strmid(url, cmdtext, 11, strlen(cmdtext));
+        if (gLastDialogScreenIndex[playerid] != INVALID_SCREEN_INDEX)
+        {
+            DestroyDialogScreen(gLastDialogScreenIndex[playerid]);
+        }
+
+        gLastDialogScreenIndex[playerid] = CreateDialogScreen(playerid, url, DIALOG_SCREEN_COLS, DIALOG_SCREEN_ROWS);
+        SendClientMessage(playerid, 0xFFFFFFFF, "Dialog screen criada.");
         return 1;
     }
-    if (strcmp(cmdtext, "/gif", true, 4) == 0)
+    if (strcmp(cmdtext, "/imgdialog", true) == 0)
     {
-        strmid(url, cmdtext, 5, strlen(cmdtext));
-        StartScreenPlacement(playerid, SCREEN_MEDIA_GIF, url);
+        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /imgdialog <media url>");
         return 1;
     }
-    if (strcmp(cmdtext, "/video", true, 6) == 0)
+    if (strcmp(cmdtext, "/screen ", true, 8) == 0)
     {
-        strmid(url, cmdtext, 7, strlen(cmdtext));
-        StartScreenPlacement(playerid, SCREEN_MEDIA_VIDEO, url);
+        strmid(url, cmdtext, 8, strlen(cmdtext));
+        StartScreenPlacement(playerid, url);
         return 1;
     }
-    if (strcmp(cmdtext, "/live", true, 5) == 0)
+    if (strcmp(cmdtext, "/screen", true) == 0)
     {
-        strmid(url, cmdtext, 6, strlen(cmdtext));
-        StartScreenPlacement(playerid, SCREEN_MEDIA_YOUTUBE_LIVE, url);
+        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /screen <media url>");
         return 1;
     }
     if (strcmp(cmdtext, "/delscreen", true) == 0)
@@ -245,9 +245,24 @@ public OnPlayerCommandText(playerid, cmdtext[])
     return 0;
 }
 
+public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
+{
+    if (dialogid == DIALOG_SCREEN_DIALOG_ID && response == 1)
+    {
+        if (gLastDialogScreenIndex[playerid] != INVALID_SCREEN_INDEX)
+        {
+            DestroyDialogScreen(gLastDialogScreenIndex[playerid]);
+            gLastDialogScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
 public OnPlayerEditDynamicObject(playerid, STREAMER_TAG_OBJECT:objectid, response, Float:x, Float:y, Float:z, Float:rx, Float:ry, Float:rz)
 {
-    if (objectid != gPendingScreenGhost[playerid] || gPendingScreenMedia[playerid] == SCREEN_MEDIA_NONE)
+    if (objectid != gPendingScreenGhost[playerid] || !gPendingScreenPlacement[playerid])
         return 0;
 
     Destroy3DMediaScreenPreview(_:objectid);
@@ -258,14 +273,7 @@ public OnPlayerEditDynamicObject(playerid, STREAMER_TAG_OBJECT:objectid, respons
         new url[128];
         strcopy(url, gPendingScreenUrl[playerid]);
 
-        new tileCols = 1, tileRows = 1;
-        if (gPendingScreenMedia[playerid] == SCREEN_MEDIA_IMAGE)
-        {
-            tileCols = MOSAIC_TILE_COLS;
-            tileRows = MOSAIC_TILE_ROWS;
-        }
-
-        gLastScreenIndex[playerid] = Create3DMediaScreen(url, x, y, z, rx, ry, rz, tileCols, tileRows, -1, -1, -1, 5.0, x, y, z + SCREEN_HIDDEN_BUFFER_Z_OFFSET);
+        gLastScreenIndex[playerid] = Create3DMediaScreen(url, x, y, z, rx, ry, rz, SCREEN_TILE_COLS, SCREEN_TILE_ROWS, -1, -1, -1, 5.0, x, y, z + SCREEN_HIDDEN_BUFFER_Z_OFFSET);
         SendClientMessage(playerid, 0xFFFFFFFF, "Tela criada! Use /delscreen para apaga-la.");
     }
     else
@@ -273,6 +281,6 @@ public OnPlayerEditDynamicObject(playerid, STREAMER_TAG_OBJECT:objectid, respons
         SendClientMessage(playerid, 0xFFFFFFFF, "Posicionamento cancelado.");
     }
 
-    gPendingScreenMedia[playerid] = SCREEN_MEDIA_NONE;
+    gPendingScreenPlacement[playerid] = false;
     return 1;
 }

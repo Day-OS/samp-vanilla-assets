@@ -1,13 +1,15 @@
-use std::sync::mpsc::{Sender, SyncSender};
+use std::sync::mpsc::{Sender, SyncSender, TrySendError};
 use std::time::Duration;
 
-use samp::amx::Amx;
+use samp::amx::{Amx, AmxIdent};
 use samp::error::AmxResult;
 
 use log::info;
 
 use crate::amx_natives;
 use crate::animation::{Animation, ScreenAnimation};
+use crate::audio_server;
+use crate::content_sources::video::{self, FrameOutcome};
 use crate::engine::WorldPosition;
 use crate::network_budget::NetworkBudget;
 
@@ -239,12 +241,43 @@ pub trait Screen {
     /// `Screen3D`'s mosaic. `()` for a screen kind with nothing extra to say.
     type DecodeConfig;
 
+    fn decode_dimensions(config: &Self::DecodeConfig) -> (u32, u32);
+
+    fn build_frame(
+        canvas: &[u8],
+        delay: Duration,
+        config: &Self::DecodeConfig,
+    ) -> (Self::Frame, Duration);
+
     /// Decodes `url` into one `(Frame, Duration)` per frame of the clip.
     fn load_clip(
         url: &str,
         sender: Sender<(Self::Frame, Duration)>,
         config: &Self::DecodeConfig,
-    ) -> Result<(), String>;
+    ) -> Result<(), String> {
+        let (width, height) = Self::decode_dimensions(config);
+        let raw_frames = video::load_frames(url, width, height)?;
+        if raw_frames.is_empty() {
+            return Err("ffmpeg produced no frames".to_string());
+        }
+
+        let frame_count = raw_frames.len();
+        for raw in raw_frames {
+            if sender
+                .send(Self::build_frame(&raw.data, raw.delay, config))
+                .is_err()
+            {
+                info!("Screen::load_clip -> receiver disconnected");
+                return Ok(());
+            }
+        }
+
+        info!(
+            "Screen::load_clip -> built and sent {} frame(s)",
+            frame_count
+        );
+        Ok(())
+    }
 
     /// Decodes a live stream at `url`, sending each frame to `sender` as it
     /// arrives, until the stream ends or the receiver disconnects.
@@ -252,11 +285,77 @@ pub trait Screen {
         url: &str,
         sender: SyncSender<(Self::Frame, Duration)>,
         config: &Self::DecodeConfig,
-    ) -> Result<(), String>;
+    ) -> Result<(), String> {
+        let (width, height) = Self::decode_dimensions(config);
+        video::stream_frames(url, width, height, |raw| {
+            match sender.try_send(Self::build_frame(&raw.data, raw.delay, config)) {
+                Ok(()) => FrameOutcome::Sent,
+                Err(TrySendError::Full(_)) => FrameOutcome::Dropped,
+                Err(TrySendError::Disconnected(_)) => FrameOutcome::Disconnected,
+            }
+        })
+    }
 
     fn animation_mut(&mut self) -> &mut Animation<Self::Frame>;
 
     fn step_paint(&mut self, amx: &Amx, budget: &mut NetworkBudget);
+    fn amx_ident(&self) -> AmxIdent;
+    fn destroy_screen(&self, amx: &Amx);
+
+    fn destroy(&self, amx: &Amx) {
+        self.destroy_screen(amx);
+        self.destroy_target_audio(amx);
+        self.destroy_area(amx);
+
+        if let Some(path) = self.audio_relay_path() {
+            audio_server::stop_live_source(path);
+        }
+    }
+
+    fn destroy_target_audio(&self, amx: &Amx) {
+        let mut target_method = self.get_display_target_method().clone();
+        if let Err(err) = target_method.stop_audio(amx) {
+            info!(
+                "Screen::destroy -> failed to stop listener audio: {:?}",
+                err
+            );
+        }
+    }
+
+    fn destroy_area(&self, amx: &Amx) {
+        if let Some(area_id) = self.get_display_target_method().area_id() {
+            if let Err(err) = amx_natives::destroy_dynamic_area(amx, area_id) {
+                info!(
+                    "Screen::destroy -> failed to destroy audio area {}: {:?}",
+                    area_id, err
+                );
+            }
+        }
+    }
+
+    fn handle_area_enter(&mut self, amx: &Amx, player_id: i32, area_id: i32) -> AmxResult<bool> {
+        if self.get_display_target_method().area_id() != Some(area_id) {
+            return Ok(false);
+        }
+
+        let audio_url = self.audio_url().clone();
+        let position = self.get_position().position();
+        self.display_target_method_mut().add_area_listener(
+            amx,
+            player_id,
+            audio_url.as_deref(),
+            position,
+        )
+    }
+
+    fn handle_area_leave(&mut self, amx: &Amx, player_id: i32, area_id: i32) -> AmxResult<bool> {
+        if self.get_display_target_method().area_id() != Some(area_id) {
+            return Ok(false);
+        }
+
+        self.display_target_method_mut()
+            .remove_area_listener(amx, player_id)
+    }
 
     fn get_display_target_method(&self) -> &DisplayTargetMethod;
     fn set_display_target_method(&mut self, method: DisplayTargetMethod);
@@ -264,19 +363,33 @@ pub trait Screen {
 
     fn audio_url(&self) -> &Option<String>;
     fn set_audio_url(&mut self, url: String);
+    fn audio_relay_path(&self) -> Option<&str> {
+        None
+    }
+    fn set_audio_relay_path(&mut self, _path: String) {}
+
+    fn start_audio(&mut self, amx: &Amx) -> AmxResult<()> {
+        let audio_url = self.audio_url().clone();
+        let position = self.get_position().position();
+        if let Some(url) = audio_url.as_deref() {
+            self.display_target_method_mut()
+                .start_audio(amx, url, position)?;
+        }
+        Ok(())
+    }
+
+    fn before_step_paint(&mut self, _amx: &Amx) -> AmxResult<()> {
+        Ok(())
+    }
 
     /// Drives animation playback for one server tick.
     fn tick(&mut self, amx: &Amx, budget: &mut NetworkBudget) -> AmxResult<()> {
         if !self.has_started() {
-            let audio_url = self.audio_url().clone();
-            let position = self.get_position().position();
-            if let Some(url) = audio_url.as_deref() {
-                self.display_target_method_mut()
-                    .start_audio(amx, url, position)?;
-            }
+            self.start_audio(amx)?;
             self.set_started();
         }
 
+        self.before_step_paint(amx)?;
         self.step_paint(amx, budget);
         Ok(())
     }

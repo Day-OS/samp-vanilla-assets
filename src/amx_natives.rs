@@ -152,6 +152,41 @@ pub fn stop_audio_stream_for_player(amx: &Amx, player_id: i32) -> AmxResult<i32>
     call_native(amx, "StopAudioStreamForPlayer", &[player_id])
 }
 
+pub fn show_player_dialog(
+    amx: &Amx,
+    player_id: i32,
+    dialog_id: i32,
+    style: i32,
+    title: &str,
+    body: &str,
+    button1: &str,
+    button2: &str,
+) -> AmxResult<i32> {
+    let allocator = amx.allocator();
+    let title = allocator.allot_string(title)?;
+    let body = allocator.allot_string(body)?;
+    let button1 = allocator.allot_string(button1)?;
+    let button2 = allocator.allot_string(button2)?;
+
+    call_native(
+        amx,
+        "ShowPlayerDialog",
+        &[
+            player_id,
+            dialog_id,
+            style,
+            title.as_cell(),
+            body.as_cell(),
+            button1.as_cell(),
+            button2.as_cell(),
+        ],
+    )
+}
+
+pub fn hide_player_dialog(amx: &Amx, player_id: i32) -> AmxResult<i32> {
+    call_native(amx, "HidePlayerDialog", &[player_id])
+}
+
 pub fn text_draw_create(amx: &Amx, x: f32, y: f32, text: &str) -> AmxResult<i32> {
     let allocator = amx.allocator();
     let text = allocator.allot_string(text)?;
