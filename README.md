@@ -1,11 +1,14 @@
-# samp-vanilla-assets
+# Samp Vanilla Assets - Load external media dynamically without cache
+![window_view](docs/fro.png)
+
+Look at other examples at: `/docs`
 
 Rust plugin for open.mp/SA-MP that renders media (image, GIF, video, and YouTube live) on 3D objects using object material text.
 ## Requirements
 
 - Rust toolchain (rustup + cargo)
 - ffmpeg available in PATH
-- yt-dlp available in PATH (for YouTube live)
+- yt-dlp available in PATH (for YouTube)
 - open.mp/SA-MP server with legacy plugin support
 
 ## Build
