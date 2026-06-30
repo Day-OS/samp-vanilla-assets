@@ -1,9 +1,13 @@
 use std::time::Duration;
 
 pub const CUSTOM_SCREEN_MODEL: i32 = -1003;
+pub const CUSTOM_SCREEN_SHADOW_MODEL: i32 = -1004;
 pub const CUSTOM_SCREEN_BASE_MODEL: i32 = 19805;
+pub const CUSTOM_SCREEN_SHADOW_BASE_MODEL: i32 = 19806;
 pub const CUSTOM_SCREEN_DFF: &str = "screen.dff";
 pub const CUSTOM_SCREEN_TXD: &str = "screen.txd";
+pub const CUSTOM_SCREEN_SHADOW_DFF: &str = "screen-shadow.dff";
+pub const CUSTOM_SCREEN_SHADOW_TXD: &str = "screen-shadow.txd";
 
 pub const MATERIAL_SIZE_512X512: i32 = 140;
 pub const TRANSPARENT_ARGB: i32 = 0x00000000;

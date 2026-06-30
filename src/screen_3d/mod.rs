@@ -21,7 +21,7 @@ use crate::network_budget::NetworkBudget;
 use crate::screen::{DisplayTargetMethod, Screen};
 use crate::screen_3d::frame::{Frame3D, build_frame3d};
 use crate::screen_3d::placement::{create_screen_decoy, destroy_screen_decoy};
-use crate::screen_3d::screen_buffer::ScreenBuffer;
+use crate::screen_3d::screen_buffer::{ScreenBuffer, ScreenModel};
 
 const PAINT_BATCH: usize = 6;
 /// How long a freshly painted hidden target sits before it's eligible to
@@ -173,6 +173,7 @@ impl Screen3D {
         ring_size: usize,
         tile_grid: (usize, usize),
         target_method: DisplayTargetMethod,
+        model: screen_buffer::ScreenModel,
     ) -> AmxResult<usize> {
         let amx_ident = amx.ident();
         let (tile_cols, tile_rows) = tile_grid;
@@ -185,7 +186,7 @@ impl Screen3D {
         };
 
         let loading_decoy = Some(create_screen_decoy(
-            amx, &position, tile_cols, tile_rows, &player_id,
+            amx, &position, tile_cols, tile_rows, &player_id, model,
         )?);
 
         for index in 0..ring_size {
@@ -195,7 +196,7 @@ impl Screen3D {
                 &hidden_buffer_pos
             };
             buffers.push(ScreenBuffer::new(
-                amx, position, tile_cols, tile_rows, &player_id,
+                amx, position, tile_cols, tile_rows, &player_id, model,
             )?);
         }
 

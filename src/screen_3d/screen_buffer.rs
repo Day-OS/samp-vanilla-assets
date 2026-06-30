@@ -9,10 +9,34 @@ use crate::amx_natives;
 use crate::constants::{
     CUSTOM_SCREEN_BASE_MODEL, CUSTOM_SCREEN_DFF, CUSTOM_SCREEN_MODEL, CUSTOM_SCREEN_TXD, GRID_FONT,
     GRID_FONT_SIZE, LAYERS_PER_BUFFER, MATERIAL_SIZE_512X512, TILE_HEIGHT, TILE_WIDTH,
-    TRANSPARENT_ARGB,
+    TRANSPARENT_ARGB, CUSTOM_SCREEN_SHADOW_BASE_MODEL, CUSTOM_SCREEN_SHADOW_DFF,
+    CUSTOM_SCREEN_SHADOW_MODEL, CUSTOM_SCREEN_SHADOW_TXD,
 };
 use crate::engine::WorldPosition;
 use crate::screen_3d::frame::{Frame3DMaterial, Frame3DMaterialLayer};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScreenModel {
+	Standard = 0,
+	Shadow = 1,
+}
+
+impl ScreenModel {
+	pub fn from_id(id: i32) -> Option<Self> {
+		match id {
+			0 => Some(ScreenModel::Standard),
+			1 => Some(ScreenModel::Shadow),
+			_ => None,
+		}
+	}
+
+	pub fn to_model_id(&self) -> i32 {
+		match self {
+			ScreenModel::Standard => CUSTOM_SCREEN_MODEL,
+			ScreenModel::Shadow => CUSTOM_SCREEN_SHADOW_MODEL,
+		}
+	}
+}
 
 static SCREEN_MODEL_REGISTERED: AtomicBool = AtomicBool::new(false);
 
@@ -30,6 +54,16 @@ pub fn ensure_screen_model_registered(amx: &Amx) {
     ) {
         info!("failed to register custom screen model: {:?}", err);
     }
+    if let Err(err) = amx_natives::add_simple_model(
+        amx,
+        -1, // virtualWorld: all
+        CUSTOM_SCREEN_SHADOW_BASE_MODEL,
+        CUSTOM_SCREEN_SHADOW_MODEL,
+        CUSTOM_SCREEN_SHADOW_DFF,
+        CUSTOM_SCREEN_SHADOW_TXD,
+    ) {
+        info!("failed to register custom screen-shadow model: {:?}", err);
+    }
 }
 
 const STREAMER_OBJECT_SD: f32 = 300.0;
@@ -39,10 +73,11 @@ pub fn create_wall(
     amx: &Amx,
     world_position: &WorldPosition,
     player_id: &Option<i32>,
+    model: ScreenModel,
 ) -> AmxResult<i32> {
     amx_natives::create_dynamic_object(
         amx,
-        CUSTOM_SCREEN_MODEL,
+        model.to_model_id(),
         world_position.position_x,
         world_position.position_y,
         world_position.position_z,
@@ -157,11 +192,12 @@ impl ScreenBuffer {
         tile_cols: usize,
         tile_rows: usize,
         player_id: &Option<i32>,
+        model: ScreenModel,
     ) -> AmxResult<ScreenBuffer> {
         let tile_count = tile_rows * tile_cols;
         let mut tiles = Vec::with_capacity(tile_count);
 
-        let anchor_object = create_wall(amx, world_position, player_id)?;
+        let anchor_object = create_wall(amx, world_position, player_id, model)?;
         tiles.push(ScreenBufferTile::new(anchor_object));
 
         for tile_row in 0..tile_rows {
@@ -173,7 +209,7 @@ impl ScreenBuffer {
                 let offset_y = tile_col as f32 * TILE_WIDTH;
                 let offset_z = tile_row as f32 * TILE_HEIGHT;
 
-                let object_id = create_wall(amx, world_position, player_id)?;
+                let object_id = create_wall(amx, world_position, player_id, model)?;
                 const SYNC_ROTATION: i32 = 1;
                 amx_natives::attach_object_to_object(
                     amx,

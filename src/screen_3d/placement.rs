@@ -37,8 +37,9 @@ pub fn create_screen_decoy(
     tile_cols: usize,
     tile_rows: usize,
     player_id: &Option<i32>,
+    model: crate::screen_3d::screen_buffer::ScreenModel,
 ) -> AmxResult<Vec<i32>> {
-    let decoy = ScreenBuffer::new(amx, world_position, tile_cols, tile_rows, player_id)?;
+    let decoy = ScreenBuffer::new(amx, world_position, tile_cols, tile_rows, player_id, model)?;
     let object_ids: Vec<i32> = decoy.tiles.iter().map(|tile| tile.object_id).collect();
     paint_screen_decoy(amx, &decoy)?;
 
@@ -92,7 +93,7 @@ impl Plugin {
         let tile_cols = tile_cols.max(1) as usize;
         let tile_rows = tile_rows.max(1) as usize;
         let object_ids =
-            create_screen_decoy(amx, &world_position, tile_cols, tile_rows, &player_id)?;
+            create_screen_decoy(amx, &world_position, tile_cols, tile_rows, &player_id, crate::screen_3d::screen_buffer::ScreenModel::Standard)?;
 
         let anchor_object_id = object_ids[0];
         self.placement_previews.push(object_ids);

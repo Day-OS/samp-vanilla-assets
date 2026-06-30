@@ -13,12 +13,18 @@
 #include <open.mp>
 #include <streamer>
 
+enum E_SCREEN_MODEL {
+	SCREEN_MODEL_STANDARD = 0,
+	SCREEN_MODEL_SHADOW = 1
+};
+
 // Create3DMediaScreen works out image/gif/video/youtube-live on its own from
 // `url` - playerid only matters for video/live (it's who the extracted audio
 // targets); tileCols/tileRows size the mosaic and apply to any media kind.
+// modelId chooses the 3D model (see E_SCREEN_MODEL enum).
 // Returns a screenIndex handle - keep it if you want to Destroy3DMediaScreen
 // it later, it stays valid for the screen's whole lifetime.
-native Create3DMediaScreen(const url[], Float:x, Float:y, Float:z, Float:rotationX = 0.0, Float:rotationY = 0.0, Float:rotationZ = 0.0, tileCols = 1, tileRows = 1, playerid = -1, world_id = -1, interior_id = -1, Float:audioRange = 5.0, Float:hiddenX = 0.0, Float:hiddenY = 0.0, Float:hiddenZ = 0.0);
+native Create3DMediaScreen(const url[], Float:x, Float:y, Float:z, Float:rotationX = 0.0, Float:rotationY = 0.0, Float:rotationZ = 0.0, tileCols = 1, tileRows = 1, playerid = -1, world_id = -1, interior_id = -1, Float:audioRange = 5.0, Float:hiddenX = 0.0, Float:hiddenY = 0.0, Float:hiddenZ = 0.0, E_SCREEN_MODEL:modelId = SCREEN_MODEL_STANDARD);
 // Removes every object backing the given screenIndex. Returns 0 if the index
 // is out of range or was already destroyed.
 native Destroy3DMediaScreen(screenIndex);
@@ -32,8 +38,8 @@ native DestroyDialogScreen(screenIndex);
 
 #define INVALID_SCREEN_INDEX (-1)
 
-#define SCREEN_TILE_COLS 1
-#define SCREEN_TILE_ROWS 1
+#define SCREEN_TILE_COLS 4
+#define SCREEN_TILE_ROWS 4
 #define SCREEN_HIDDEN_BUFFER_Z_OFFSET (8.0)
 #define DIALOG_SCREEN_DIALOG_ID 1
 #define DIALOG_SCREEN_COLS 48
@@ -56,7 +62,8 @@ public _KeepObjectNativesAlive()
     #pragma warning disable 205
     if (false)
     {
-        new objectid = CreateObject(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        CreateObject(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        new objectid = CreatePlayerObject(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         SetObjectMaterialText(objectid, "", 0, OBJECT_MATERIAL_SIZE_256x256, "Arial", 48, true, 0, 0, OBJECT_MATERIAL_TEXT_ALIGN_CENTRE);
         SetDynamicObjectPos(objectid, 0.0, 0.0, 0.0);
         SetObjectMaterial(objectid, 0, 0, "", "", 0xFFFFFFFF);
@@ -87,6 +94,7 @@ public _KeepObjectNativesAlive()
         DestroyDynamicArea(circleid);
         DestroyDynamicArea(cylinderid);
         DestroyDynamicArea(areaid);
+        EditPlayerObject(0, objectid);
     }
     #pragma warning pop
     return 1;
