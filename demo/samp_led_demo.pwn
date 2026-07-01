@@ -36,7 +36,7 @@ native Destroy3DMediaScreenPreview(previewObjectId);
 native CreateDialogScreen(playerid, const url[], cols = 32, rows = 32);
 native DestroyDialogScreen(screenIndex);
 // CreateTextDrawScreen renders media as a HUD overlay via PlayerTextDraws.
-native CreateTextDrawScreen(const url[], playerid, Float:x = 70.0, Float:y = 55.0, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
+native CreateTextDrawScreen(const url[], playerid, Float:x, Float:y, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
 native DestroyTextDrawScreen(screenIndex);
 
 #define INVALID_SCREEN_INDEX (-1)
@@ -229,7 +229,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
         {
             DestroyTextDrawScreen(gLastTdScreenIndex[playerid]);
         }
-        gLastTdScreenIndex[playerid] = CreateTextDrawScreen(url, playerid);
+        gLastTdScreenIndex[playerid] = CreateTextDrawScreen(url, playerid, 120.0, 120.0, .cols = 64, .rows = 64, .letterSizeX = 0.30, .letterSizeY = 0.30);
         SendClientMessage(playerid, 0xFFFFFFFF, "TextDraw screen criada.");
         return 1;
     }
