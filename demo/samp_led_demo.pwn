@@ -5,7 +5,7 @@
     preview ("ghost") with the mouse via the native object editor, then
     create the real screen wherever you let go.
 
-    Commands: /screen <media url>, /imgdialog <media url>, /delscreen
+    Commands: /screen <media url>, /imgdialog <media url>, /tdscreen <media url>, /delscreen
 */
 
 #define FILTERSCRIPT
@@ -35,6 +35,9 @@ native Create3DMediaScreenPreview(Float:x, Float:y, Float:z, Float:rotationX = 0
 native Destroy3DMediaScreenPreview(previewObjectId);
 native CreateDialogScreen(playerid, const url[], cols = 32, rows = 32);
 native DestroyDialogScreen(screenIndex);
+// CreateTextDrawScreen renders media as a HUD overlay via PlayerTextDraws.
+native CreateTextDrawScreen(const url[], playerid, Float:x = 70.0, Float:y = 55.0, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
+native DestroyTextDrawScreen(screenIndex);
 
 #define INVALID_SCREEN_INDEX (-1)
 
@@ -85,6 +88,21 @@ public _KeepObjectNativesAlive()
         TextDrawShowForPlayer(0, logo);
         ShowPlayerDialog(0, 0, DIALOG_STYLE_MSGBOX, "", "", "", "");
         HidePlayerDialog(0);
+        new PlayerText:ptd = CreatePlayerTextDraw(0, 0.0, 0.0, ".");
+        PlayerTextDrawDestroy(0, ptd);
+        PlayerTextDrawLetterSize(0, ptd, 0.0, 0.0);
+        PlayerTextDrawTextSize(0, ptd, 0.0, 0.0);
+        PlayerTextDrawAlignment(0, ptd, 1);
+        PlayerTextDrawColour(0, ptd, 0xFFFFFFFF);
+        PlayerTextDrawBackgroundColour(0, ptd, 0);
+        PlayerTextDrawSetOutline(0, ptd, 0);
+        PlayerTextDrawSetShadow(0, ptd, 0);
+        PlayerTextDrawFont(0, ptd, 0);
+        PlayerTextDrawShow(0, ptd);
+        PlayerTextDrawHide(0, ptd);
+        PlayerTextDrawSetString(0, ptd, ".");
+        PlayerTextDrawBoxColor(0, 0, 0);
+        PlayerTextDrawUseBox(0, 0, false);
         CreateDynamicObject(0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 200.0, 0.0, -1, 0);
         SetDynamicObjectMaterialText(objectid, 0, "", OBJECT_MATERIAL_SIZE_256x128, "Arial", 24,  1, 0xFFFFFFFF, 0, 0);
         new STREAMER_TAG_AREA:areaid = CreateDynamicSphere(0.0, 0.0, 0.0, 5.0, -1, -1, -1);
@@ -106,6 +124,7 @@ new
     gPendingScreenGhost[MAX_PLAYERS],
     gLastScreenIndex[MAX_PLAYERS],
     gLastDialogScreenIndex[MAX_PLAYERS],
+    gLastTdScreenIndex[MAX_PLAYERS],
     gDynamicProbeObject = INVALID_STREAMER_ID
 ;
 
@@ -143,6 +162,7 @@ public OnPlayerConnect(playerid)
     gPendingScreenGhost[playerid] = INVALID_OBJECT_ID;
     gLastScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     gLastDialogScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+    gLastTdScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     return 1;
 }
 
@@ -202,6 +222,22 @@ public OnPlayerCommandText(playerid, cmdtext[])
 {
     new url[128];
 
+    if (strcmp(cmdtext, "/tdscreen ", true, 10) == 0)
+    {
+        strmid(url, cmdtext, 10, strlen(cmdtext));
+        if (gLastTdScreenIndex[playerid] != INVALID_SCREEN_INDEX)
+        {
+            DestroyTextDrawScreen(gLastTdScreenIndex[playerid]);
+        }
+        gLastTdScreenIndex[playerid] = CreateTextDrawScreen(url, playerid);
+        SendClientMessage(playerid, 0xFFFFFFFF, "TextDraw screen criada.");
+        return 1;
+    }
+    if (strcmp(cmdtext, "/tdscreen", true) == 0)
+    {
+        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /tdscreen <media url>");
+        return 1;
+    }
     if (strcmp(cmdtext, "/imgdialog ", true, 11) == 0)
     {
         strmid(url, cmdtext, 11, strlen(cmdtext));
