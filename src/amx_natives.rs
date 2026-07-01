@@ -187,6 +187,70 @@ pub fn hide_player_dialog(amx: &Amx, player_id: i32) -> AmxResult<i32> {
     call_native(amx, "HidePlayerDialog", &[player_id])
 }
 
+pub fn create_player_text_draw(amx: &Amx, playerid: i32, x: f32, y: f32, text: &str) -> AmxResult<i32> {
+    let allocator = amx.allocator();
+    let text = allocator.allot_string(text)?;
+    call_native(amx, "CreatePlayerTextDraw", &[playerid, x.as_cell(), y.as_cell(), text.as_cell()])
+}
+
+pub fn player_text_draw_destroy(amx: &Amx, playerid: i32, text_id: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawDestroy", &[playerid, text_id])
+}
+
+pub fn player_text_draw_letter_size(amx: &Amx, playerid: i32, text_id: i32, x: f32, y: f32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawLetterSize", &[playerid, text_id, x.as_cell(), y.as_cell()])
+}
+
+pub fn player_text_draw_text_size(amx: &Amx, playerid: i32, text_id: i32, x: f32, y: f32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawTextSize", &[playerid, text_id, x.as_cell(), y.as_cell()])
+}
+
+pub fn player_text_draw_alignment(amx: &Amx, playerid: i32, text_id: i32, alignment: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawAlignment", &[playerid, text_id, alignment])
+}
+
+pub fn player_text_draw_colour(amx: &Amx, playerid: i32, text_id: i32, colour: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawColor", &[playerid, text_id, colour])
+}
+
+pub fn player_text_draw_background_colour(amx: &Amx, playerid: i32, text_id: i32, colour: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawBackgroundColor", &[playerid, text_id, colour])
+}
+
+pub fn player_text_draw_set_outline(amx: &Amx, playerid: i32, text_id: i32, size: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawSetOutline", &[playerid, text_id, size])
+}
+
+pub fn player_text_draw_set_shadow(amx: &Amx, playerid: i32, text_id: i32, size: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawSetShadow", &[playerid, text_id, size])
+}
+
+pub fn player_text_draw_font(amx: &Amx, playerid: i32, text_id: i32, font: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawFont", &[playerid, text_id, font])
+}
+
+pub fn player_text_draw_show(amx: &Amx, playerid: i32, text_id: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawShow", &[playerid, text_id])
+}
+
+pub fn player_text_draw_hide(amx: &Amx, playerid: i32, text_id: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawHide", &[playerid, text_id])
+}
+
+pub fn player_text_draw_use_box(amx: &Amx, playerid: i32, text_id: i32, enable: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawUseBox", &[playerid, text_id, enable])
+}
+
+pub fn player_text_draw_box_color(amx: &Amx, playerid: i32, text_id: i32, color: i32) -> AmxResult<i32> {
+    call_native(amx, "PlayerTextDrawBoxColor", &[playerid, text_id, color])
+}
+
+pub fn player_text_draw_set_string(amx: &Amx, playerid: i32, text_id: i32, text: &str) -> AmxResult<i32> {
+    let allocator = amx.allocator();
+    let text = allocator.allot_string(text)?;
+    call_native(amx, "PlayerTextDrawSetString", &[playerid, text_id, text.as_cell()])
+}
+
 pub fn text_draw_create(amx: &Amx, x: f32, y: f32, text: &str) -> AmxResult<i32> {
     let allocator = amx.allocator();
     let text = allocator.allot_string(text)?;

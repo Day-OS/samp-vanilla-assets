@@ -10,6 +10,7 @@ mod content_sources;
 mod screen_2d;
 mod screen_3d;
 mod screen_dialog;
+mod screen_textdraw;
 
 mod amx_natives;
 mod animation;
@@ -26,6 +27,7 @@ use crate::screen::Screen;
 use crate::screen_3d::Screen3D;
 use crate::screen_3d::screen_buffer::ensure_screen_model_registered;
 use crate::screen_dialog::DialogScreen;
+use crate::screen_textdraw::TextDrawScreen;
 
 static AUDIO_SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 static AUDIO_CLIP_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -33,6 +35,7 @@ static AUDIO_CLIP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 enum AnyScreen {
     ThreeD(Screen3D),
     Dialog(DialogScreen),
+    TextDraw(TextDrawScreen),
 }
 
 impl AnyScreen {
@@ -40,6 +43,7 @@ impl AnyScreen {
         match self {
             AnyScreen::ThreeD(screen) => Screen::amx_ident(screen),
             AnyScreen::Dialog(screen) => Screen::amx_ident(screen),
+            AnyScreen::TextDraw(screen) => Screen::amx_ident(screen),
         }
     }
 
@@ -47,6 +51,7 @@ impl AnyScreen {
         match self {
             AnyScreen::ThreeD(screen) => Screen::tick(screen, amx, budget),
             AnyScreen::Dialog(screen) => Screen::tick(screen, amx, budget),
+            AnyScreen::TextDraw(screen) => Screen::tick(screen, amx, budget),
         }
     }
 
@@ -54,6 +59,7 @@ impl AnyScreen {
         match self {
             AnyScreen::ThreeD(screen) => Screen::destroy(screen, amx),
             AnyScreen::Dialog(screen) => Screen::destroy(screen, amx),
+            AnyScreen::TextDraw(screen) => Screen::destroy(screen, amx),
         }
     }
 
@@ -61,6 +67,7 @@ impl AnyScreen {
         match self {
             AnyScreen::ThreeD(screen) => Screen::handle_area_enter(screen, amx, player_id, area_id),
             AnyScreen::Dialog(screen) => Screen::handle_area_enter(screen, amx, player_id, area_id),
+            AnyScreen::TextDraw(screen) => Screen::handle_area_enter(screen, amx, player_id, area_id),
         }
     }
 
@@ -68,6 +75,7 @@ impl AnyScreen {
         match self {
             AnyScreen::ThreeD(screen) => Screen::handle_area_leave(screen, amx, player_id, area_id),
             AnyScreen::Dialog(screen) => Screen::handle_area_leave(screen, amx, player_id, area_id),
+            AnyScreen::TextDraw(screen) => Screen::handle_area_leave(screen, amx, player_id, area_id),
         }
     }
 }
@@ -133,6 +141,8 @@ initialize_plugin!(
         Plugin::destroy_3d_media_screen_preview,
         Plugin::create_dialog_screen,
         Plugin::destroy_dialog_screen,
+        Plugin::create_textdraw_screen,
+        Plugin::destroy_textdraw_screen,
         Plugin::sva_area_listener_on_player_enter,
         Plugin::sva_area_listener_on_player_leave,
     ],
