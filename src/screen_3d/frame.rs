@@ -120,25 +120,20 @@ fn render_band(pixels: &[Vec<i32>], range: &Range<usize>) -> String {
 // merge nearby colors (0 = full color) to cut down on color-change count
 const QUANTIZE_STEPS: &[i32] = &[0, 8, 16, 24, 32, 48, 64, 80, 112];
 
-fn pick_quality(regions: &[Vec<u8>], tile_w: usize, tile_h: usize) -> (usize, usize, i32, i32) {
+fn pick_quality(region: &[u8], tile_w: usize, tile_h: usize) -> (usize, usize, i32, i32) {
     let mut worst_case = None;
 
     for &(rows, cols, font_size) in CLIP_RESOLUTION_LEVELS {
-        let pixel_grids: Vec<_> = regions
-            .iter()
-            .map(|region| downsample_to_argb(region, tile_w, tile_h, rows, cols))
-            .collect();
+        let pixels = downsample_to_argb(region, tile_w, tile_h, rows, cols);
 
         for &quantize_step in QUANTIZE_STEPS {
-            let fits = pixel_grids.iter().all(|pixels| {
-                let quantized = if quantize_step == 0 {
-                    None
-                } else {
-                    Some(quantize_pixels(pixels, quantize_step))
-                };
-                let costs = row_costs(quantized.as_ref().unwrap_or(pixels));
-                pack_bands(&costs).len() <= LAYERS_PER_BUFFER
-            });
+            let quantized = if quantize_step == 0 {
+                None
+            } else {
+                Some(quantize_pixels(&pixels, quantize_step))
+            };
+            let costs = row_costs(quantized.as_ref().unwrap_or(&pixels));
+            let fits = pack_bands(&costs).len() <= LAYERS_PER_BUFFER;
 
             if fits {
                 return (rows, cols, font_size, quantize_step);
@@ -179,10 +174,9 @@ pub fn build_frame3d(
         }
     }
 
-    let (rows, cols, font_size, quantize_step) = pick_quality(&regions, tile_w, tile_h);
-
     let mut region_materials = vec![];
     for region in &regions {
+        let (rows, cols, font_size, quantize_step) = pick_quality(region, tile_w, tile_h);
         let pixels = downsample_to_argb(region, tile_w, tile_h, rows, cols);
         let quantized = if quantize_step == 0 {
             None
