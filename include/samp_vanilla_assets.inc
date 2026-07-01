@@ -36,6 +36,22 @@ native DestroyDialogScreen(screenIndex);
 native CreateTextDrawScreen(const url[], playerid, Float:x, Float:y, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
 native DestroyTextDrawScreen(screenIndex);
 
+// Per-player opt-out lists - a blacklisted player simply never has that kind
+// of screen (or audio) created/shown for them; everyone else is unaffected.
+// A screen_3d screen shared by everyone is only ever hidden from a
+// blacklisted player specifically (via the streamer's own per-player
+// visibility toggle) - it stays visible to everybody else. Each *Add/*Remove
+// pair returns 1 if the player's membership actually changed, 0 if they were
+// already in that state.
+native SVA_BlacklistScreen3DAdd(playerid);
+native SVA_BlacklistScreen3DRemove(playerid);
+native SVA_BlacklistScreenDialogAdd(playerid);
+native SVA_BlacklistScreenDialogRemove(playerid);
+native SVA_BlacklistScreenTextDrawAdd(playerid);
+native SVA_BlacklistScreenTextDrawRemove(playerid);
+native SVA_BlacklistAudioAdd(playerid);
+native SVA_BlacklistAudioRemove(playerid);
+
 // Screens use dynamic areas to know when a player enters/leaves their trigger
 // radius (audio range etc.), but those areas only ever notify Pawn through
 // the ordinary OnPlayerEnterDynamicArea/OnPlayerLeaveDynamicArea callbacks -
@@ -137,6 +153,7 @@ public _SVA_KeepDependencyNativesAlive()
 		new STREAMER_TAG_AREA:circleid = CreateDynamicCircle(0.0, 0.0, 5.0, -1, -1, -1, 0);
 		new STREAMER_TAG_AREA:cylinderid = CreateDynamicCylinder(0.0, 0.0, -5.0, 5.0, 5.0, -1, -1, -1);
 		IsPlayerInDynamicArea(0, areaid, true);
+		Streamer_ToggleItem(0, 0, 0, 0);
 		DestroyDynamicArea(circleid);
 		DestroyDynamicArea(cylinderid);
 		DestroyDynamicArea(areaid);

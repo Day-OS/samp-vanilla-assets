@@ -36,6 +36,14 @@ impl Plugin {
         hidden_z: f32,
         model_id: i32,
     ) -> AmxResult<i32> {
+        if player_id >= 0 && crate::blacklist::is_screen_3d_blacklisted(player_id) {
+            info!(
+                "Create3DMediaScreen -> player {} is blacklisted from screen_3d, skipping",
+                player_id
+            );
+            return Ok(-1);
+        }
+
         let model = crate::screen_3d::screen_buffer::ScreenModel::from_id(model_id)
             .unwrap_or(crate::screen_3d::screen_buffer::ScreenModel::Standard);
         let url = url.to_string();
@@ -99,6 +107,7 @@ impl Plugin {
 
         match self.screens[screen_index].as_mut() {
             Some(AnyScreen::ThreeD(screen)) => {
+                crate::blacklist::hide_new_screen_3d_from_blacklisted_players(amx, screen);
                 start_media_playback_for(screen, url, tile_grid, "Screen3D")?;
             }
             _ => {

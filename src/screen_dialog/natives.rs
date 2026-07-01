@@ -18,6 +18,14 @@ impl Plugin {
         cols: i32,
         rows: i32,
     ) -> AmxResult<i32> {
+        if crate::blacklist::is_screen_dialog_blacklisted(player_id) {
+            log::info!(
+                "CreateDialogScreen -> player {} is blacklisted from screen_dialog, skipping",
+                player_id
+            );
+            return Ok(-1);
+        }
+
         let url = url.to_string();
         let cols = cols.max(1) as usize;
         let rows = rows.max(1) as usize;
