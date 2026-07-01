@@ -6,11 +6,10 @@ use samp::amx::Amx;
 use samp::error::AmxResult;
 
 use crate::amx_natives;
+use crate::config;
 use crate::constants::{
-    CUSTOM_SCREEN_BASE_MODEL, CUSTOM_SCREEN_DFF, CUSTOM_SCREEN_MODEL, CUSTOM_SCREEN_TXD, GRID_FONT,
-    GRID_FONT_SIZE, LAYERS_PER_BUFFER, MATERIAL_SIZE_512X512, TILE_HEIGHT, TILE_WIDTH,
-    TRANSPARENT_ARGB, CUSTOM_SCREEN_SHADOW_BASE_MODEL, CUSTOM_SCREEN_SHADOW_DFF,
-    CUSTOM_SCREEN_SHADOW_MODEL, CUSTOM_SCREEN_SHADOW_TXD,
+    GRID_FONT, GRID_FONT_SIZE, LAYERS_PER_BUFFER, MATERIAL_SIZE_512X512, TILE_HEIGHT, TILE_WIDTH,
+    TRANSPARENT_ARGB,
 };
 use crate::engine::WorldPosition;
 use crate::screen_3d::frame::{Frame3DMaterial, Frame3DMaterialLayer};
@@ -32,8 +31,8 @@ impl ScreenModel {
 
 	pub fn to_model_id(&self) -> i32 {
 		match self {
-			ScreenModel::Standard => CUSTOM_SCREEN_MODEL,
-			ScreenModel::Shadow => CUSTOM_SCREEN_SHADOW_MODEL,
+			ScreenModel::Standard => config::get().screen_model.standard_model_id,
+			ScreenModel::Shadow => config::get().screen_model.shadow_model_id,
 		}
 	}
 }
@@ -44,23 +43,24 @@ pub fn ensure_screen_model_registered(amx: &Amx) {
     if SCREEN_MODEL_REGISTERED.swap(true, Ordering::SeqCst) {
         return;
     }
+    let screen_model = &config::get().screen_model;
     if let Err(err) = amx_natives::add_simple_model(
         amx,
         -1, // virtualWorld: all
-        CUSTOM_SCREEN_BASE_MODEL,
-        CUSTOM_SCREEN_MODEL,
-        CUSTOM_SCREEN_DFF,
-        CUSTOM_SCREEN_TXD,
+        screen_model.standard_base_model_id,
+        screen_model.standard_model_id,
+        &screen_model.standard_dff,
+        &screen_model.standard_txd,
     ) {
         info!("failed to register custom screen model: {:?}", err);
     }
     if let Err(err) = amx_natives::add_simple_model(
         amx,
         -1, // virtualWorld: all
-        CUSTOM_SCREEN_SHADOW_BASE_MODEL,
-        CUSTOM_SCREEN_SHADOW_MODEL,
-        CUSTOM_SCREEN_SHADOW_DFF,
-        CUSTOM_SCREEN_SHADOW_TXD,
+        screen_model.shadow_base_model_id,
+        screen_model.shadow_model_id,
+        &screen_model.shadow_dff,
+        &screen_model.shadow_txd,
     ) {
         info!("failed to register custom screen-shadow model: {:?}", err);
     }

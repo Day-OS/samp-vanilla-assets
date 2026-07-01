@@ -10,7 +10,7 @@ use ffmpeg_sidecar::command::FfmpegCommand;
 use log::info;
 use tiny_http::{Header, Response, Server};
 
-use crate::constants::{AUDIO_OUTPUT_DIR, AUDIO_SERVER_BIND};
+use crate::config;
 
 #[derive(Clone)]
 struct AudioSource {
@@ -195,12 +195,14 @@ fn live_source_for(path: &str) -> Option<AudioSource> {
 }
 
 pub fn start() {
-    let server = match Server::http(AUDIO_SERVER_BIND) {
+    let audio_config = &config::get().audio;
+
+    let server = match Server::http(audio_config.server_bind.as_str()) {
         Ok(server) => server,
         Err(err) => {
             info!(
                 "audio_server -> failed to bind {}: {}",
-                AUDIO_SERVER_BIND, err
+                audio_config.server_bind, err
             );
             return;
         }
@@ -208,7 +210,7 @@ pub fn start() {
 
     info!(
         "audio_server -> serving {} on http://{}",
-        AUDIO_OUTPUT_DIR, AUDIO_SERVER_BIND
+        audio_config.output_dir, audio_config.server_bind
     );
 
     thread::spawn(move || {
@@ -374,7 +376,7 @@ fn resolve_path(requested: &str) -> Option<PathBuf> {
         return None;
     }
 
-    Some(Path::new(AUDIO_OUTPUT_DIR).join(requested))
+    Some(Path::new(&config::get().audio.output_dir).join(requested))
 }
 
 fn content_type_for(path: &Path) -> Option<&'static str> {

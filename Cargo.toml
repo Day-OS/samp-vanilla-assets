@@ -11,3 +11,5 @@ samp = "0.1.2"
 log = "0.4"
 tiny_http = "0.12"
 ffmpeg-sidecar = { version = "2.5.2", default-features = false }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

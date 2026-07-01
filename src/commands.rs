@@ -7,7 +7,7 @@ use samp::prelude::*;
 
 use crate::animation::ScreenAnimation;
 use crate::audio_server;
-use crate::constants::AUDIO_BASE_URL;
+use crate::config;
 use crate::content_sources::yt_resolver;
 use crate::screen::Screen;
 use crate::AUDIO_CLIP_COUNTER;
@@ -29,7 +29,7 @@ fn attach_audio_to_screen<S: Screen>(
 
     let audio_id = AUDIO_CLIP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let audio_relay_path = format!("clip_{}.mp3", audio_id);
-    let audio_url = format!("{}/{}", AUDIO_BASE_URL, audio_relay_path);
+    let audio_url = format!("{}/{}", config::get().audio.base_url, audio_relay_path);
 
     audio_server::register_live_source(audio_relay_path.clone(), source_url.to_string(), loops);
     screen.set_audio_url(audio_url);
