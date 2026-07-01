@@ -1,6 +1,10 @@
 use std::time::Duration;
 
 pub const MATERIAL_SIZE_512X512: i32 = 140;
+/// Streamer's own object item-type id, used with `Streamer_ToggleItem` to
+/// hide a screen_3d tile from one specific player without affecting anyone
+/// else looking at the same (otherwise shared) object - see `blacklist.rs`.
+pub const STREAMER_TYPE_OBJECT: i32 = 0;
 pub const TRANSPARENT_ARGB: i32 = 0x00000000;
 pub const GRID_FONT: &str = "Wingdings";
 

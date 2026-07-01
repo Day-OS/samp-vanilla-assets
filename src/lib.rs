@@ -15,6 +15,7 @@ mod screen_textdraw;
 mod amx_natives;
 mod animation;
 mod audio_server;
+mod blacklist;
 mod commands;
 mod config;
 mod constants;
@@ -145,6 +146,14 @@ initialize_plugin!(
         Plugin::destroy_textdraw_screen,
         Plugin::sva_area_listener_on_player_enter,
         Plugin::sva_area_listener_on_player_leave,
+        Plugin::sva_blacklist_screen_3d_add,
+        Plugin::sva_blacklist_screen_3d_remove,
+        Plugin::sva_blacklist_screen_dialog_add,
+        Plugin::sva_blacklist_screen_dialog_remove,
+        Plugin::sva_blacklist_screen_textdraw_add,
+        Plugin::sva_blacklist_screen_textdraw_remove,
+        Plugin::sva_blacklist_audio_add,
+        Plugin::sva_blacklist_audio_remove,
     ],
     {
         samp::plugin::enable_process_tick();

@@ -67,6 +67,36 @@ native DestroyTextDrawScreen(screenIndex);
 Renders media as a HUD overlay via `PlayerTextDraw`s at screen position
 `x, y`.
 
+### Per-player blacklists
+
+```pawn
+native SVA_BlacklistScreen3DAdd(playerid);
+native SVA_BlacklistScreen3DRemove(playerid);
+native SVA_BlacklistScreenDialogAdd(playerid);
+native SVA_BlacklistScreenDialogRemove(playerid);
+native SVA_BlacklistScreenTextDrawAdd(playerid);
+native SVA_BlacklistScreenTextDrawRemove(playerid);
+native SVA_BlacklistAudioAdd(playerid);
+native SVA_BlacklistAudioRemove(playerid);
+```
+
+Lets a player opt out of one kind of content without affecting anyone else.
+A blacklisted player simply never has that kind of screen (or audio) created
+for them — `Create3DMediaScreen`/`CreateDialogScreen`/`CreateTextDrawScreen`
+silently return `INVALID_SCREEN_INDEX` for them, and no `PlayAudioStreamForPlayer`
+call is ever made for a player on the audio blacklist, regardless of which
+screen type triggered it.
+
+`screen_3d` is the one shared-with-everyone case (a real object in the
+world): blacklisting a player there hides the object *only for them*, via the
+streamer plugin's own per-player visibility toggle — everyone else still
+sees it normally, including screens created before the player was
+blacklisted.
+
+Each `*Add`/`*Remove` native returns `1` if the player's membership actually
+changed, `0` if they were already in that state (e.g. calling `*Add` twice in
+a row for the same player).
+
 ## Constants
 
 - `E_SCREEN_MODEL:SCREEN_MODEL_STANDARD` / `E_SCREEN_MODEL:SCREEN_MODEL_SHADOW` — 3D model choice for `Create3DMediaScreen`.

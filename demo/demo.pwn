@@ -5,7 +5,9 @@
     preview ("ghost") with the mouse via the native object editor, then
     create the real screen wherever you let go.
 
-    Commands: /screen <media url>, /imgdialog <media url>, /tdscreen <media url>, /delscreen
+    Commands: /screen <media url>, /imgdialog <media url>, /tdscreen <media url>, /delscreen,
+    /blacklist3d, /blacklistdialog, /blacklisttd, /blacklistaudio (each toggles
+    the caller's own opt-out for that content kind on/off)
 */
 
 #define FILTERSCRIPT
@@ -50,7 +52,7 @@ public OnFilterScriptInit()
         print("CreateDynamicObject FAILED (runtime probe not created).");
     }
 
-    print("samp_led_demo loaded - commands: /screen <media url> /imgdialog <media url> /delscreen");
+    print("samp_led_demo loaded - commands: /screen <media url> /imgdialog <media url> /delscreen /blacklist3d /blacklistdialog /blacklisttd /blacklistaudio");
     return 1;
 }
 
@@ -197,6 +199,58 @@ public OnPlayerCommandText(playerid, cmdtext[])
         }
 
         gLastScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+        return 1;
+    }
+    if (strcmp(cmdtext, "/blacklist3d", true) == 0)
+    {
+        if (SVA_BlacklistScreen3DAdd(playerid))
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce nao vai mais ver screen_3d (novas ou ja existentes).");
+        }
+        else
+        {
+            SVA_BlacklistScreen3DRemove(playerid);
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce voltou a ver screen_3d.");
+        }
+        return 1;
+    }
+    if (strcmp(cmdtext, "/blacklistdialog", true) == 0)
+    {
+        if (SVA_BlacklistScreenDialogAdd(playerid))
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce nao vai mais receber dialog screens.");
+        }
+        else
+        {
+            SVA_BlacklistScreenDialogRemove(playerid);
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce voltou a receber dialog screens.");
+        }
+        return 1;
+    }
+    if (strcmp(cmdtext, "/blacklisttd", true) == 0)
+    {
+        if (SVA_BlacklistScreenTextDrawAdd(playerid))
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce nao vai mais receber textdraw screens.");
+        }
+        else
+        {
+            SVA_BlacklistScreenTextDrawRemove(playerid);
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce voltou a receber textdraw screens.");
+        }
+        return 1;
+    }
+    if (strcmp(cmdtext, "/blacklistaudio", true) == 0)
+    {
+        if (SVA_BlacklistAudioAdd(playerid))
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce nao vai mais ouvir audio de nenhuma tela.");
+        }
+        else
+        {
+            SVA_BlacklistAudioRemove(playerid);
+            SendClientMessage(playerid, 0xFFFFFFFF, "Voce voltou a ouvir audio das telas.");
+        }
         return 1;
     }
     return 0;

@@ -125,6 +125,10 @@ pub fn play_audio_stream_for_player(
     pos: Option<(f32, f32, f32)>,
     distance: f32,
 ) -> AmxResult<i32> {
+    if crate::blacklist::is_audio_blacklisted(*player_id) {
+        return Ok(0);
+    }
+
     let allocator = amx.allocator();
     let url = allocator.allot_string(url)?;
 

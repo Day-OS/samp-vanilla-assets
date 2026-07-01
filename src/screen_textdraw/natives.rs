@@ -24,6 +24,14 @@ impl Plugin {
         box_scale: f32,
         budget: i32,
     ) -> AmxResult<i32> {
+        if crate::blacklist::is_screen_textdraw_blacklisted(playerid) {
+            log::info!(
+                "CreateTextDrawScreen -> player {} is blacklisted from screen_textdraw, skipping",
+                playerid
+            );
+            return Ok(-1);
+        }
+
         let url = url.to_string();
         let cols = (cols.max(1)) as usize;
         let rows = (rows.max(1)) as usize;
