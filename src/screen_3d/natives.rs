@@ -34,7 +34,10 @@ impl Plugin {
         hidden_x: f32,
         hidden_y: f32,
         hidden_z: f32,
+        model_id: i32,
     ) -> AmxResult<i32> {
+        let model = crate::screen_3d::screen_buffer::ScreenModel::from_id(model_id)
+            .unwrap_or(crate::screen_3d::screen_buffer::ScreenModel::Standard);
         let url = url.to_string();
         let tile_grid = (tile_cols as usize, tile_rows as usize);
 
@@ -91,6 +94,7 @@ impl Plugin {
             ANIMATION_RING_SIZE,
             tile_grid,
             target_method,
+            model,
         )?;
 
         match self.screens[screen_index].as_mut() {
