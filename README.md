@@ -46,8 +46,9 @@ Install it following its instructions, then add it to your server's plugin list 
 
 1. Copy the generated DLL to the server `plugins` folder.
 2. Make sure `models/screen.dff` and `models/screen.txd` are present in the server `models` folder.
-3. In `config.json`, add the plugin name under `pawn.legacy_plugins` (example: `"samp_led"`).
-4. Restart the server.
+3. In `config.json`, add the plugin name under `pawn.legacy_plugins` (example: `"samp_vanilla_assets"`).
+4. Copy `include/samp_vanilla_assets.inc` into your compiler's include path (e.g. `qawno/include`) and `#include <samp_vanilla_assets>` in your script — see [`docs/pawn-include.md`](docs/pawn-include.md) for the full Pawn API and a working example in [`demo/demo.pwn`](demo/demo.pwn).
+5. Restart the server.
 
 ## Audio
 

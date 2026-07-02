@@ -1,5 +1,5 @@
 /*
-    Example filterscript for the samp-led plugin.
+    Example filterscript for the samp_vanilla_assets plugin.
 
     Shows the full flow: pass a media URL with a command, drag/rotate a
     preview ("ghost") with the mouse via the native object editor, then
@@ -12,34 +12,7 @@
 
 #include <open.mp>
 #include <streamer>
-
-enum E_SCREEN_MODEL {
-	SCREEN_MODEL_STANDARD = 0,
-	SCREEN_MODEL_SHADOW = 1
-};
-
-// Create3DMediaScreen works out image/gif/video/youtube-live on its own from
-// `url` - playerid only matters for video/live (it's who the extracted audio
-// targets); tileCols/tileRows size the mosaic and apply to any media kind.
-// modelId chooses the 3D model (see E_SCREEN_MODEL enum).
-// Returns a screenIndex handle - keep it if you want to Destroy3DMediaScreen
-// it later, it stays valid for the screen's whole lifetime.
-native Create3DMediaScreen(const url[], Float:x, Float:y, Float:z, Float:rotationX = 0.0, Float:rotationY = 0.0, Float:rotationZ = 0.0, tileCols = 1, tileRows = 1, playerid = -1, world_id = -1, interior_id = -1, Float:audioRange = 5.0, Float:hiddenX = 0.0, Float:hiddenY = 0.0, Float:hiddenZ = 0.0, E_SCREEN_MODEL:modelId = SCREEN_MODEL_STANDARD);
-// Removes every object backing the given screenIndex. Returns 0 if the index
-// is out of range or was already destroyed.
-native Destroy3DMediaScreen(screenIndex);
-native SVA_AreaListenerOnPlayerEnter(playerid, areaid);
-native SVA_AreaListenerOnPlayerLeave(playerid, areaid);
-
-native Create3DMediaScreenPreview(Float:x, Float:y, Float:z, Float:rotationX = 0.0, Float:rotationY = 0.0, Float:rotationZ = 0.0, tileCols = 1, tileRows = 1, worldid = -1, interior_id = -1, playerid = -1);
-native Destroy3DMediaScreenPreview(previewObjectId);
-native CreateDialogScreen(playerid, const url[], cols = 32, rows = 32);
-native DestroyDialogScreen(screenIndex);
-// CreateTextDrawScreen renders media as a HUD overlay via PlayerTextDraws.
-native CreateTextDrawScreen(const url[], playerid, Float:x, Float:y, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
-native DestroyTextDrawScreen(screenIndex);
-
-#define INVALID_SCREEN_INDEX (-1)
+#include <samp_vanilla_assets>
 
 #define SCREEN_TILE_COLS 4
 #define SCREEN_TILE_ROWS 4
@@ -53,70 +26,6 @@ native DestroyTextDrawScreen(screenIndex);
 // the pixel-grid sign, so give it room to spare instead of tuning around a
 // 2005-era default every time the grid gets bigger.
 #pragma dynamic 1048576
-
-//The AMX only registers natives that are
-// referenced somewhere in the compiled script. This unreachable reference
-// keeps all seven in this script's import table so the plugin can resolve
-// them at runtime.
-forward _KeepObjectNativesAlive();
-public _KeepObjectNativesAlive()
-{
-    #pragma warning push
-    #pragma warning disable 205
-    if (false)
-    {
-        CreateObject(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-        new objectid = CreatePlayerObject(0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-        SetObjectMaterialText(objectid, "", 0, OBJECT_MATERIAL_SIZE_256x256, "Arial", 48, true, 0, 0, OBJECT_MATERIAL_TEXT_ALIGN_CENTRE);
-        SetDynamicObjectPos(objectid, 0.0, 0.0, 0.0);
-        SetObjectMaterial(objectid, 0, 0, "", "", 0xFFFFFFFF);
-        new modelid, texlib[16], texname[16], colour;
-        GetObjectMaterial(objectid, 0, modelid, texlib, sizeof(texlib), texname, sizeof(texname), colour);
-        AddSimpleModel(-1, 0, -1, "none.dff", "none.txd");
-        PlayAudioStreamForPlayer(0, "", 0.0, 0.0, 0.0, 50.0, false);
-        AttachDynamicObjectToObject(objectid, objectid, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-        DestroyObject(objectid);
-        new players[MAX_PLAYERS];
-        GetPlayers(players, sizeof(players));
-        new Float:x, Float:y, Float:z;
-        GetPlayerPos(0, x, y, z);
-        StopAudioStreamForPlayer(0);
-        new Text:logo = TextDrawCreate(0.0, 0.0, "");
-        TextDrawFont(logo, TEXT_DRAW_FONT_0);
-        TextDrawTextSize(logo, 0.0, 0.0);
-        TextDrawShowForAll(logo);
-        TextDrawShowForPlayer(0, logo);
-        ShowPlayerDialog(0, 0, DIALOG_STYLE_MSGBOX, "", "", "", "");
-        HidePlayerDialog(0);
-        new PlayerText:ptd = CreatePlayerTextDraw(0, 0.0, 0.0, ".");
-        PlayerTextDrawDestroy(0, ptd);
-        PlayerTextDrawLetterSize(0, ptd, 0.0, 0.0);
-        PlayerTextDrawTextSize(0, ptd, 0.0, 0.0);
-        PlayerTextDrawAlignment(0, ptd, 1);
-        PlayerTextDrawColour(0, ptd, 0xFFFFFFFF);
-        PlayerTextDrawBackgroundColour(0, ptd, 0);
-        PlayerTextDrawSetOutline(0, ptd, 0);
-        PlayerTextDrawSetShadow(0, ptd, 0);
-        PlayerTextDrawFont(0, ptd, 0);
-        PlayerTextDrawShow(0, ptd);
-        PlayerTextDrawHide(0, ptd);
-        PlayerTextDrawSetString(0, ptd, ".");
-        PlayerTextDrawBoxColor(0, 0, 0);
-        PlayerTextDrawUseBox(0, 0, false);
-        CreateDynamicObject(0, 0, 0, 0, 0, 0, 0, -1, -1, -1, 200.0, 0.0, -1, 0);
-        SetDynamicObjectMaterialText(objectid, 0, "", OBJECT_MATERIAL_SIZE_256x128, "Arial", 24,  1, 0xFFFFFFFF, 0, 0);
-        new STREAMER_TAG_AREA:areaid = CreateDynamicSphere(0.0, 0.0, 0.0, 5.0, -1, -1, -1);
-        new STREAMER_TAG_AREA:circleid = CreateDynamicCircle(0.0, 0.0, 5.0, -1, -1, -1, 0);
-        new STREAMER_TAG_AREA:cylinderid = CreateDynamicCylinder(0.0, 0.0, -5.0, 5.0, 5.0, -1, -1, -1);
-        IsPlayerInDynamicArea(0, areaid, true);
-        DestroyDynamicArea(circleid);
-        DestroyDynamicArea(cylinderid);
-        DestroyDynamicArea(areaid);
-        EditPlayerObject(0, objectid);
-    }
-    #pragma warning pop
-    return 1;
-}
 
 new
     bool:gPendingScreenPlacement[MAX_PLAYERS],
@@ -181,15 +90,19 @@ public OnPlayerDisconnect(playerid, reason)
     return 1;
 }
 
+// Just a demonstration that OnPlayerEnterDynamicArea/OnPlayerLeaveDynamicArea
+// keep working as normal callbacks after #include <samp_vanilla_assets> - the
+// library already forwarded these into its own area-listener natives before
+// this runs, no extra wiring needed here.
 public OnPlayerEnterDynamicArea(playerid, STREAMER_TAG_AREA:areaid)
 {
-    SVA_AreaListenerOnPlayerEnter(playerid, _:areaid);
+    printf("[samp_led_demo] player %d entered dynamic area %d", playerid, _:areaid);
     return 1;
 }
 
 public OnPlayerLeaveDynamicArea(playerid, STREAMER_TAG_AREA:areaid)
 {
-    SVA_AreaListenerOnPlayerLeave(playerid, _:areaid);
+    printf("[samp_led_demo] player %d left dynamic area %d", playerid, _:areaid);
     return 1;
 }
 
