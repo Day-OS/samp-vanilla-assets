@@ -50,15 +50,46 @@ Install it following its instructions, then add it to your server's plugin list 
 4. Copy `include/samp_vanilla_assets.inc` into your compiler's include path (e.g. `qawno/include`) and `#include <samp_vanilla_assets>` in your script — see [`docs/pawn-include.md`](docs/pawn-include.md) for the full Pawn API and a working example in [`demo/demo.pwn`](demo/demo.pwn).
 5. Restart the server.
 
-## Audio
+## Configuration
 
-| Setting | Value |
+Network, audio and screen-model settings live in `SVA_Config.toml`, next to
+`omp-server.exe`/`config.json`. It's created automatically (with the defaults
+below) the first time the plugin loads if it doesn't exist yet — edit it and
+restart the server, no rebuild needed.
+
+```toml
+[network]
+budget_rate_per_sec = 2800.0
+budget_capacity = 60.0
+
+[audio]
+server_bind = "0.0.0.0:7878"
+output_dir = "samp-led/audio_cache"
+base_url = "http://127.0.0.1:7878"
+
+[screen_model]
+standard_model_id = -1003
+shadow_model_id = -1004
+standard_base_model_id = 19805
+shadow_base_model_id = 19806
+standard_dff = "screen.dff"
+standard_txd = "screen.txd"
+shadow_dff = "screen-shadow.dff"
+shadow_txd = "screen-shadow.txd"
+```
+
+| Setting | Purpose |
 |---|---|
-| Internal audio HTTP server bind | `0.0.0.0:7878` |
-| Default audio base URL | `http://127.0.0.1:7878` |
-| Audio output directory | defined in code (`AUDIO_OUTPUT_DIR`) |
+| `network.budget_rate_per_sec` / `budget_capacity` | Shared object-update token bucket — tune while watching the server log for `client exceeded 'ackslimit'` warnings. |
+| `audio.server_bind` | Bind address for the internal HTTP server that relays extracted audio clips. |
+| `audio.output_dir` | Where extracted audio clips are cached on disk. |
+| `audio.base_url` | Base URL players' clients use to fetch audio — change it if the server sits behind a different public host/port than `server_bind`. |
+| `screen_model.*` | Custom model IDs and DFF/TXD file names for the screen/screen-shadow objects — must match whatever's in the server's `models/` folder. |
 
-To change bind/port/path, edit the constants in `src/constants.rs` and rebuild.
+Everything else (grid size, tile physical dimensions, FPS, etc.) is rendering
+logic tied to the shipped `screen.dff`/`screen.txd` assets and stays in
+`src/constants.rs` — changing it without matching models will just distort
+the mosaic.
 
 ## Quick troubleshooting
 

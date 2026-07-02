@@ -16,12 +16,12 @@ mod amx_natives;
 mod animation;
 mod audio_server;
 mod commands;
+mod config;
 mod constants;
 mod engine;
 mod network_budget;
 mod screen;
 
-use crate::constants::{NETWORK_BUDGET_CAPACITY, NETWORK_BUDGET_RATE_PER_SEC};
 use crate::network_budget::NetworkBudget;
 use crate::screen::Screen;
 use crate::screen_3d::Screen3D;
@@ -149,10 +149,15 @@ initialize_plugin!(
     {
         samp::plugin::enable_process_tick();
 
+        let sva_config = config::get();
+
         let plugin = Plugin {
             screens: Vec::new(),
             placement_previews: Vec::new(),
-            network_budget: NetworkBudget::new(NETWORK_BUDGET_RATE_PER_SEC, NETWORK_BUDGET_CAPACITY),
+            network_budget: NetworkBudget::new(
+                sva_config.network.budget_rate_per_sec,
+                sva_config.network.budget_capacity,
+            ),
             tick_priority_offset: 0,
         };
 
