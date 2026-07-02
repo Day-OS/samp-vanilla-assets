@@ -1267,6 +1267,23 @@ pub fn is_player_in_dynamic_area(
     call_native(amx, "IsPlayerInDynamicArea", &[playerid, areaid, recheck])
 }
 
+/// Players currently inside `area_id`, used to seed a freshly created area's
+/// listener list with whoever is already standing in range.
+pub fn players_in_area(amx: &Amx, area_id: i32) -> Vec<i32> {
+    let Ok(players) = get_players(amx, 1000) else {
+        return Vec::new();
+    };
+
+    players
+        .into_iter()
+        .filter(|player_id| {
+            is_player_in_dynamic_area(amx, *player_id, area_id, 1)
+                .map(|inside| inside != 0)
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
 pub fn is_player_in_any_dynamic_area(amx: &Amx, playerid: i32, recheck: i32) -> AmxResult<i32> {
     call_native(amx, "IsPlayerInAnyDynamicArea", &[playerid, recheck])
 }

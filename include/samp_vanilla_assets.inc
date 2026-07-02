@@ -36,6 +36,13 @@ native DestroyDialogScreen(screenIndex);
 native CreateTextDrawScreen(const url[], playerid, Float:x, Float:y, cols = 64, rows = 64, Float:letterSizeX = 0.25, Float:letterSizeY = 0.35, Float:boxScale = 9.0, budget = 256);
 native DestroyTextDrawScreen(screenIndex);
 
+// CreateAudioSource is a screen with nothing to look at - same
+// player-targeted-vs-area-based positioning as Create3DMediaScreen (playerid
+// >= 0 targets just that player, -1 makes a dynamic area of audioRange around
+// x/y/z that anyone can walk into), but it only ever plays audio.
+native CreateAudioSource(const url[], Float:x, Float:y, Float:z, playerid = -1, world_id = -1, interior_id = -1, Float:audioRange = 5.0);
+native DestroyAudioSource(screenIndex);
+
 // Per-player opt-out lists - a blacklisted player simply never has that kind
 // of screen (or audio) created/shown for them; everyone else is unaffected.
 // A screen_3d screen shared by everyone is only ever hidden from a
