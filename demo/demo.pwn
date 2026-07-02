@@ -6,6 +6,7 @@
     create the real screen wherever you let go.
 
     Commands: /screen <media url>, /imgdialog <media url>, /tdscreen <media url>, /delscreen,
+    /soundsrc <media url>, /delsound,
     /blacklist3d, /blacklistdialog, /blacklisttd, /blacklistaudio (each toggles
     the caller's own opt-out for that content kind on/off)
 */
@@ -36,6 +37,7 @@ new
     gLastScreenIndex[MAX_PLAYERS],
     gLastDialogScreenIndex[MAX_PLAYERS],
     gLastTdScreenIndex[MAX_PLAYERS],
+    gLastAudioSourceIndex[MAX_PLAYERS],
     gDynamicProbeObject = INVALID_STREAMER_ID
 ;
 
@@ -52,7 +54,7 @@ public OnFilterScriptInit()
         print("CreateDynamicObject FAILED (runtime probe not created).");
     }
 
-    print("samp_led_demo loaded - commands: /screen <media url> /imgdialog <media url> /delscreen /blacklist3d /blacklistdialog /blacklisttd /blacklistaudio");
+    print("samp_led_demo loaded - commands: /screen <media url> /imgdialog <media url> /delscreen /soundsrc <media url> /delsound /blacklist3d /blacklistdialog /blacklisttd /blacklistaudio");
     return 1;
 }
 
@@ -74,6 +76,7 @@ public OnPlayerConnect(playerid)
     gLastScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     gLastDialogScreenIndex[playerid] = INVALID_SCREEN_INDEX;
     gLastTdScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+    gLastAudioSourceIndex[playerid] = INVALID_SCREEN_INDEX;
     return 1;
 }
 
@@ -199,6 +202,45 @@ public OnPlayerCommandText(playerid, cmdtext[])
         }
 
         gLastScreenIndex[playerid] = INVALID_SCREEN_INDEX;
+        return 1;
+    }
+    if (strcmp(cmdtext, "/soundsrc ", true, 10) == 0)
+    {
+        new Float:x, Float:y, Float:z;
+        GetPlayerPos(playerid, x, y, z);
+
+        strmid(url, cmdtext, 10, strlen(cmdtext));
+        if (gLastAudioSourceIndex[playerid] != INVALID_SCREEN_INDEX)
+        {
+            DestroyAudioSource(gLastAudioSourceIndex[playerid]);
+        }
+        gLastAudioSourceIndex[playerid] = CreateAudioSource(url, x, y, z);
+        SendClientMessage(playerid, 0xFFFFFFFF, "Fonte de som criada na sua posicao.");
+        return 1;
+    }
+    if (strcmp(cmdtext, "/soundsrc", true) == 0)
+    {
+        SendClientMessage(playerid, 0xFFFFFFFF, "Usage: /soundsrc <media url>");
+        return 1;
+    }
+    if (strcmp(cmdtext, "/delsound", true) == 0)
+    {
+        if (gLastAudioSourceIndex[playerid] == INVALID_SCREEN_INDEX)
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Nenhuma fonte de som pra apagar.");
+            return 1;
+        }
+
+        if (DestroyAudioSource(gLastAudioSourceIndex[playerid]))
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Fonte de som apagada.");
+        }
+        else
+        {
+            SendClientMessage(playerid, 0xFFFFFFFF, "Essa fonte de som ja nao existe mais.");
+        }
+
+        gLastAudioSourceIndex[playerid] = INVALID_SCREEN_INDEX;
         return 1;
     }
     if (strcmp(cmdtext, "/blacklist3d", true) == 0)

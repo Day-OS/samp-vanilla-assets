@@ -86,7 +86,7 @@ impl Plugin {
                 "Create3DMediaScreen -> created audio area {} at ({:.2}, {:.2}, {:.2}) range={:.2}",
                 area_id, x, y, z, audio_range
             );
-            let listeners = players_in_area(amx, area_id);
+            let listeners = amx_natives::players_in_area(amx, area_id);
             info!(
                 "Create3DMediaScreen -> audio area {} initial listeners={:?}",
                 area_id, listeners
@@ -180,19 +180,4 @@ impl Plugin {
 
         Ok(0)
     }
-}
-
-fn players_in_area(amx: &Amx, area_id: i32) -> Vec<i32> {
-    let Ok(players) = amx_natives::get_players(amx, 1000) else {
-        return Vec::new();
-    };
-
-    players
-        .into_iter()
-        .filter(|player_id| {
-            amx_natives::is_player_in_dynamic_area(amx, *player_id, area_id, 1)
-                .map(|inside| inside != 0)
-                .unwrap_or(false)
-        })
-        .collect()
 }

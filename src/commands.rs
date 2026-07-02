@@ -58,6 +58,34 @@ fn start_screen_media<S>(
     }
 }
 
+/// Like `start_media_playback_for`, but for a screen kind with no video to
+/// decode at all - resolves the url (youtube included) and attaches audio,
+/// skipping the frame-decode pipeline entirely.
+pub(crate) fn start_audio_source_playback_for<S: Screen>(
+    screen: &mut S,
+    url: String,
+    log_context: &'static str,
+) -> AmxResult<()> {
+    let media_url = if is_youtube_url(&url) {
+        match yt_resolver::resolve_stream_url(&url) {
+            Ok(resolved) => resolved,
+            Err(err) => {
+                log::error!(
+                    "{log_context} -> failed to resolve youtube url {}: {}",
+                    url,
+                    err
+                );
+                return Ok(());
+            }
+        }
+    } else {
+        url
+    };
+
+    attach_audio_to_screen(screen, &media_url, true, log_context);
+    Ok(())
+}
+
 pub(crate) fn start_media_playback_for<S>(
     screen: &mut S,
     url: String,
